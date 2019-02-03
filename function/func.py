@@ -8,9 +8,11 @@ import core.mysql as mysql
 import core.log as log
 import core.request as request
 import core.excel as excel
+import xlwings as xw
 import constants as cs
 from prettytable import PrettyTable
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 logging = log.get_logger()
 
@@ -39,41 +41,58 @@ class ApiTest:
         """获取预执行SQL"""
         return excel.get_content(sheet, cs.SQL_ROW, cs.SQL_COL)
 
-    def run_test(self, sheet, url):
+    def run_test(self, sheetName, url):
         """再执行测试用例"""
-        rows = excel.get_rows(sheet)
+        # rows = excel.get_rows(sheet)
+        app = xw.App(visible=False)
+        wb = app.books.open(cs.FILE_NAME)
+        sht = wb.sheets[sheetName]
+        rng = xw.Range('A2')
+        rows= rng.end('down').last_cell.row
         fail = 0
-        for i in range(2, rows):
-            testNumber = str(int(excel.get_content(sheet, i, cs.CASE_NUMBER)))
-            testData = excel.get_content(sheet, i, cs.CASE_DATA)
-            testName = excel.get_content(sheet, i, cs.CASE_NAME)
-            testUrl = excel.get_content(sheet, i, cs.CASE_URL)
-            testUrl = url + testUrl
-            testMethod = excel.get_content(sheet, i, cs.CASE_METHOD)
-            testHeaders = eval(excel.get_content(sheet, i, cs.CASE_HEADERS))
-            testCode = excel.get_content(sheet, i, cs.CASE_CODE)
-            expRescode = str(int(excel.get_content(sheet, i, cs.CASE_RESCODE)))
+        for i in range(3, rows+1):
+            testNumber = int(sht.range(cs.CASE_NUMBER+str(i)).value)
+            testName = sht.range(cs.CASE_NAME+str(i)).value
+            testUrl = sht.range(cs.CASE_URL+str(i)).value
+            testMethod = sht.range(cs.CASE_METHOD+str(i)).value
+            testHeaders = eval(sht.range(cs.CASE_HEADERS+str(i)).value)
+            testData = sht.range(cs.CASE_DATA+str(i)).value
+            expectCode = int(sht.range(cs.CASE_CODE_EXP+str(i)).value)
             actualResponse = request.api(testMethod, testUrl, testData, testHeaders)
             actualCode = str(actualResponse.status_code)
-            soup = BeautifulSoup(actualResponse.content,"xml")
-            actRescode = soup.find('e-ML').ResCode.string
-            
-            expectCode = str(int(testCode))
-            # failResults = PrettyTable(["Number", "Method", "Url", "Data", "ActualCode", "ExpectCode","ActualResCode","ExpectResCode"])
-            failResults = PrettyTable(["Number", "Name", "ActualCode", "ExpectCode","ActualResCode","ExpectResCode"])
-            failResults.align["Number"] = "l"
-            failResults.padding_width = 1
-            # failResults.add_row([testNumber, testMethod, testUrl, testData, actualCode, expectCode,actRescode,expRescode])
-            failResults.add_row([testNumber, testName,  actualCode, expectCode,actRescode,expRescode])
-
-            if actualCode != expectCode or actRescode != expRescode :
+            sht.range(cs.CASE_CODE_ACT+str(i)).value = actualCode
+            if actualCode != str(expectCode):
+                sht.range(cs.CASE_CODE_JUD+str(i)).value = 'NG'
                 logging.info("FailCase %s", testName)
                 print("FailureInfo") 
-                print(failResults)
                 fail += 1
             else:
+                sht.range(cs.CASE_CODE_JUD+str(i)).value = 'OK'
                 logging.info("Number %s", testNumber)
                 logging.info("TrueCase %s", testName)
+
+            soup = BeautifulSoup(actualResponse.content,"xml")
+            actRescode = soup.find('e-ML').ResCode.string
+            sht.range(cs.CASE_RESCODE_ACT+str(i)).value = actRescode
+            expRescode = sht.range(cs.CASE_RESCODE_EXP+str(i)).value
+            if actRescode != str(expRescode) :
+                sht.range(cs.CASE_RESCODE_JUD+str(i)).value = 'NG'
+                logging.info("FailCase %s", testName)
+                fail += 1
+            else:
+                sht.range(cs.CASE_RESCODE_JUD+str(i)).value = 'OK'
+                logging.info("Number %s", testNumber)
+                logging.info("TrueCase %s", testName)
+            
+            # failResults = PrettyTable(["Number", "Name", "ActualCode", "ExpectCode","ActualResCode","ExpectResCode"])
+            # failResults.align["Number"] = "l"
+            # failResults.padding_width = 1
+            # failResults.add_row([testNumber, testName,  actualCode, expectCode,actRescode,expRescode])
+
+        wb.save( datetime.now().strftime('%Y%m%d%H%M%S')+'TestResult.xlsx')
+        wb.close()
+        app.quit()
+
         if fail > 0:
             return False
         return True
