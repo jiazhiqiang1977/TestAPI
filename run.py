@@ -11,8 +11,8 @@ logging = log.get_logger()
 
 """1.外部输入参数"""
 
-sheetName = 'getVechleStatus'
-url = 'https://api-sp.preprod.tbdc.g-book.com.cn'
+#sheetName = 'getVechleStatus'
+#url = 'https://api-sp.preprod.tbdc.g-book.com.cn'
 
 """2.根据module获取Sheet"""
 logging.info("-------------- Execute TestCases ---------------")
@@ -24,6 +24,6 @@ logging.info("-------------- Execute TestCases ---------------")
 # func.prepare_data(host=host, user=user, password=password, db=db, sql=sql)
 
 """4.执行测试用例"""
-res = func.run_test(sheetName, url)
+res = func.run_test()
 logging.info("-------------- Get the result ------------ %s", res)
 input("按任意键退出。。。")

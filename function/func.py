@@ -41,12 +41,12 @@ class ApiTest:
         """获取预执行SQL"""
         return excel.get_content(sheet, cs.SQL_ROW, cs.SQL_COL)
 
-    def run_test(self, sheetName, url):
+    def run_test(self):
         """再执行测试用例"""
         # rows = excel.get_rows(sheet)
         app = xw.App(visible=False)
         wb = app.books.open(cs.FILE_NAME)
-        sht = wb.sheets[sheetName]
+        sht = wb.sheets[0]
         rng = xw.Range('A2')
         rows= rng.end('down').last_cell.row
         fail = 0
@@ -57,11 +57,11 @@ class ApiTest:
             testMethod = sht.range(cs.CASE_METHOD+str(i)).value
             testHeaders = eval(sht.range(cs.CASE_HEADERS+str(i)).value)
             testData = sht.range(cs.CASE_DATA+str(i)).value
-            expectCode = int(sht.range(cs.CASE_CODE_EXP+str(i)).value)
+            expectCode = sht.range(cs.CASE_CODE_EXP+str(i)).options(numbers=int).value
             actualResponse = request.api(testMethod, testUrl, testData, testHeaders)
-            actualCode = str(actualResponse.status_code)
+            actualCode = actualResponse.status_code
             sht.range(cs.CASE_CODE_ACT+str(i)).value = actualCode
-            if actualCode != str(expectCode):
+            if actualCode != expectCode:
                 sht.range(cs.CASE_CODE_JUD+str(i)).value = 'NG'
                 logging.info("FailCase %s", testName)
                 print("FailureInfo") 
@@ -74,7 +74,7 @@ class ApiTest:
             soup = BeautifulSoup(actualResponse.content,"xml")
             actRescode = soup.find('e-ML').ResCode.string
             sht.range(cs.CASE_RESCODE_ACT+str(i)).value = actRescode
-            expRescode = sht.range(cs.CASE_RESCODE_EXP+str(i)).value
+            expRescode = sht.range(cs.CASE_RESCODE_EXP+str(i)).options(numbers=int).value
             if actRescode != str(expRescode) :
                 sht.range(cs.CASE_RESCODE_JUD+str(i)).value = 'NG'
                 logging.info("FailCase %s", testName)
